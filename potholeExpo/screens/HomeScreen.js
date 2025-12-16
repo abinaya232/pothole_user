@@ -16,11 +16,13 @@ import { useRouter } from 'expo-router';
 const { width } = Dimensions.get('window');
 
 /* ===== CONSTANTS ===== */
+/* ===== CONSTANTS ===== */
 const POTHOLE_THRESHOLD = 6.2;
-const MIN_SPEED = 8;
-const COOLDOWN_MS = 2000;
+const MIN_SPEED = 10;        // was 8
+const COOLDOWN_MS = 15000;   // was 2000 (15 seconds)
 const PEAK_DELTA = 2.0;
 const GRAVITY = 9.8;
+
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -106,14 +108,16 @@ accelSub.current = Accelerometer.addListener(({ z }) => {
   const prevZ = prevZRef.current;
 const delta = zCorrected - prevZ;
 
-// impact detection threshold (deep pothole only)
-if (zCorrected > POTHOLE_THRESHOLD && delta > PEAK_DELTA) {
-
+if (
+  speedRef.current >= MIN_SPEED &&
+  zCorrected > POTHOLE_THRESHOLD &&
+  delta > PEAK_DELTA &&
+  now - lastDetectionRef.current > COOLDOWN_MS
+) {
   let severity = 'low';
 
   if (zCorrected > 7.5) severity = 'high';
   else if (zCorrected > 6.5) severity = 'medium';
-  else severity = 'low';
 
   const detection = {
     latitude: currentLocationRef.current.latitude,
@@ -131,8 +135,8 @@ if (zCorrected > POTHOLE_THRESHOLD && delta > PEAK_DELTA) {
   setTimeout(() => setPopup(null), 2000);
 }
 
-
 prevZRef.current = zCorrected;
+
 
   
 });
@@ -141,32 +145,35 @@ prevZRef.current = zCorrected;
 
   /* ===== STOP DETECTION ===== */
   const stopDetection = () => {
-    setIsDetecting(false);
-    setSpeed(0);
+  setIsDetecting(false);
+  setSpeed(0);
 
-    locationSub.current?.remove();
-    accelSub.current?.remove();
+  locationSub.current?.remove();
+  accelSub.current?.remove();
 
-    const lastDetection = detections[detections.length - 1] || {
-      severity: 'low',
-      latitude: currentLocationRef.current.latitude,
-      longitude: currentLocationRef.current.longitude,
-      timestamp: Date.now(),
-    };
+  // 🚫 No potholes detected → show alert & stop
+  if (detections.length === 0) {
+    alert('No potholes detected during this session');
+    return;
+  }
 
-    router.push({
-      pathname: '/report',
-      params: {
-        data: JSON.stringify({
-          latitude: lastDetection.latitude,
-          longitude: lastDetection.longitude,
-          totalDetections: detections.length,
-          severity: lastDetection.severity,
-          timestamp: lastDetection.timestamp,
-        }),
-      },
-    });
-  };
+  // ✅ At least one pothole → proceed to report
+  const lastDetection = detections[detections.length - 1];
+
+  router.push({
+    pathname: '/report',
+    params: {
+      data: JSON.stringify({
+        latitude: lastDetection.latitude,
+        longitude: lastDetection.longitude,
+        totalDetections: detections.length,
+        severity: lastDetection.severity,
+        timestamp: lastDetection.timestamp,
+      }),
+    },
+  });
+};
+
 
   /* ===== ACCELEROMETER GRAPH ===== */
   const AccelerometerGraph = ({ data }) => {
