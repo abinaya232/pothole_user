@@ -8,14 +8,14 @@ export default function SuccessScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Success Icon */}
-      <View style={styles.iconWrapper}>
+      {/* Glow + Icon */}
+      <View style={styles.glowWrapper}>
         <View style={styles.iconCircle}>
-          <Ionicons name="checkmark" size={42} color="#fff" />
+          <Ionicons name="checkmark" size={44} color="#fff" />
         </View>
       </View>
 
-      {/* Main Text */}
+      {/* Text */}
       <Text style={styles.title}>Complaint submitted successfully</Text>
       <Text style={styles.subtitle}>
         Report has been sent to the government dashboard
@@ -23,13 +23,26 @@ export default function SuccessScreen() {
 
       {/* Info Card */}
       <View style={styles.card}>
-        <Text style={styles.cardText}>• Your report is anonymous and secure</Text>
-        <Text style={styles.cardText}>
-          • Authorities will review the data for road maintenance
-        </Text>
-        <Text style={styles.cardText}>
-          • Thank you for helping improve road safety
-        </Text>
+        <View style={styles.row}>
+          <View style={styles.dot} />
+          <Text style={styles.cardText}>
+            Your report is anonymous and secure
+          </Text>
+        </View>
+
+        <View style={styles.row}>
+          <View style={styles.dot} />
+          <Text style={styles.cardText}>
+            Authorities will review the data for road maintenance
+          </Text>
+        </View>
+
+        <View style={styles.row}>
+          <View style={styles.dot} />
+          <Text style={styles.cardText}>
+            Thank you for helping improve road safety
+          </Text>
+        </View>
       </View>
 
       {/* Button */}
@@ -44,20 +57,26 @@ export default function SuccessScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4FFF7',
+    backgroundColor: '#F3FFF7',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 90,
+    paddingTop: 80,
   },
 
-  iconWrapper: {
-    marginBottom: 20,
+  glowWrapper: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(20,184,90,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
   },
 
   iconCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
     backgroundColor: '#14B85A',
     alignItems: 'center',
     justifyContent: 'center',
@@ -67,8 +86,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    marginTop: 10,
     color: '#111',
+    marginTop: 6,
   },
 
   subtitle: {
@@ -76,21 +95,38 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 6,
     textAlign: 'center',
+    paddingHorizontal: 12,
   },
 
   card: {
     width: '100%',
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 28,
+    borderRadius: 14,
+    padding: 18,
+    marginTop: 26,
     elevation: 3,
+  },
+
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#14B85A',
+    marginTop: 7,
+    marginRight: 10,
   },
 
   cardText: {
     fontSize: 14,
     color: '#333',
-    marginBottom: 8,
+    flex: 1,
+    lineHeight: 20,
   },
 
   button: {
@@ -99,10 +135,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#1E5BFF',
     width: '100%',
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 15,
+    borderRadius: 14,
     position: 'absolute',
-    bottom: 30,
+    bottom: 28,
+    elevation: 4,
   },
 
   buttonText: {
