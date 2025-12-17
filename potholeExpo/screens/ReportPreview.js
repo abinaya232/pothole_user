@@ -1,111 +1,144 @@
-// screens/ReportPreview.js
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Pressable,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
-export default function ReportPreview({ data }) {
+export default function ReportPreview() {
   const router = useRouter();
+  const { data } = useLocalSearchParams();
 
-  if (!data) return <Text>Loading...</Text>; // safety check
+  if (!data) return <Text>Loading...</Text>;
 
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case 'high': return { bg: '#FEE2E2', text: '#B91C1C', border: '#FECACA' };
-      case 'medium': return { bg: '#FEF3C7', text: '#B45309', border: '#FDE68A' };
-      case 'low': return { bg: '#DCFCE7', text: '#15803D', border: '#A7F3D0' };
-      default: return { bg: '#E5E7EB', text: '#374151', border: '#D1D5DB' };
-    }
+  const parsed = JSON.parse(data);
+
+  const {
+    potholes = [],
+    patchyRoads = [],
+    totalPotholes = 0,
+    totalPatchy = 0,
+  } = parsed;
+
+  const primaryEvent =
+    potholes.length > 0
+      ? potholes[potholes.length - 1]
+      : patchyRoads[patchyRoads.length - 1];
+
+  if (!primaryEvent) {
+    return (
+      <View style={styles.center}>
+        <Text>No detection data available</Text>
+      </View>
+    );
+  }
+
+  const getSeverityStyle = (severity) => {
+    if (severity === 'high')
+      return { bg: '#FEE2E2', text: '#B91C1C' };
+    if (severity === 'medium')
+      return { bg: '#FEF3C7', text: '#B45309' };
+    return { bg: '#DCFCE7', text: '#15803D' };
   };
 
-  const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString();
-  };
-
-  const severityStyle = getSeverityColor(data.severity);
+  const severityStyle =
+    potholes.length > 0
+      ? getSeverityStyle(primaryEvent.severity)
+      : { bg: '#E0F2FE', text: '#0369A1' };
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.title}>Report Preview</Text>
-        <Text style={styles.subtitle}>Review detected data before submission</Text>
+        <Text style={styles.title}>Road Condition Report</Text>
+        <Text style={styles.subtitle}>
+          Auto-generated using sensor data
+        </Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Info */}
-        {data.totalDetections > 0 && (
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              {data.totalDetections} pothole event{data.totalDetections !== 1 ? 's' : ''} detected during your ride
+        {/* SUMMARY */}
+        <View style={styles.summary}>
+          <Text style={styles.summaryText}>
+            🚧 Potholes detected: {totalPotholes}
+          </Text>
+          <Text style={styles.summaryText}>
+            🛣 Patchy roads: {totalPatchy > 0 ? totalPatchy : 'None detected'}
+          </Text>
+        </View>
+
+        {/* LAT */}
+        <InfoCard
+          icon="location-outline"
+          label="Latitude"
+          value={primaryEvent.latitude.toFixed(6)}
+        />
+
+        {/* LON */}
+        <InfoCard
+          icon="location-outline"
+          label="Longitude"
+          value={primaryEvent.longitude.toFixed(6)}
+        />
+
+        {/* CONDITION */}
+        <View style={styles.card}>
+          <Text style={styles.label}>Road Condition</Text>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: severityStyle.bg },
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                { color: severityStyle.text },
+              ]}
+            >
+              {potholes.length > 0
+                ? `POTHOLE • ${primaryEvent.severity.toUpperCase()}`
+                : 'PATCHY ROAD'}
             </Text>
           </View>
-        )}
-
-        {/* Latitude */}
-        <View style={styles.card}>
-          <View style={styles.cardRow}>
-            <Ionicons name="location-outline" size={24} color="#3B82F6" style={styles.iconBox} />
-            <View style={styles.cardContent}>
-              <Text style={styles.label}>Latitude</Text>
-              <Text style={styles.value}>{data.latitude.toFixed(6)}</Text>
-            </View>
-          </View>
         </View>
 
-        {/* Longitude */}
-        <View style={styles.card}>
-          <View style={styles.cardRow}>
-            <Ionicons name="location-outline" size={24} color="#3B82F6" style={styles.iconBox} />
-            <View style={styles.cardContent}>
-              <Text style={styles.label}>Longitude</Text>
-              <Text style={styles.value}>{data.longitude.toFixed(6)}</Text>
-            </View>
-          </View>
-        </View>
+        {/* TIME */}
+        <InfoCard
+          icon="time-outline"
+          label="Detected At"
+          value={new Date(
+            primaryEvent.timestamp ||
+              primaryEvent.endTime
+          ).toLocaleString()}
+        />
 
-        {/* Severity */}
-        <View style={styles.card}>
-          <View style={styles.cardRow}>
-            <Ionicons name="alert-circle-outline" size={24} color="#EA580C" style={styles.iconBox} />
-            <View style={styles.cardContent}>
-              <Text style={styles.label}>Severity</Text>
-              <View style={[styles.severityBox, { backgroundColor: severityStyle.bg, borderColor: severityStyle.border }]}>
-                <Text style={{ color: severityStyle.text, fontWeight: '600' }}>{data.severity}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Timestamp */}
-        <View style={styles.card}>
-          <View style={styles.cardRow}>
-            <Ionicons name="time-outline" size={24} color="#7C3AED" style={styles.iconBox} />
-            <View style={styles.cardContent}>
-              <Text style={styles.label}>Timestamp</Text>
-              <Text style={styles.value}>{formatTimestamp(data.timestamp)}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Note */}
-        <View style={styles.noteBox}>
-          <Text style={styles.noteText}>All values are auto-filled and read-only</Text>
+        {/* NOTE */}
+        <View style={styles.note}>
+          <Text style={styles.noteText}>
+            This report is generated automatically using
+            accelerometer and GPS anomalies.
+          </Text>
         </View>
       </ScrollView>
 
-      {/* Actions */}
+      {/* ACTIONS */}
       <View style={styles.actions}>
-        {/* Navigate to Success screen */}
         <Pressable
-          style={styles.submitBtn}
-          onPress={() => router.push('/success')} // <--- navigate to Success screen
+          style={styles.submit}
+          onPress={() => router.push('/success')}
         >
           <Text style={styles.submitText}>Submit Complaint</Text>
         </Pressable>
 
-        <Pressable style={styles.cancelBtn} onPress={() => router.back()}>
+        <Pressable
+          style={styles.cancel}
+          onPress={() => router.back()}
+        >
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
       </View>
@@ -113,27 +146,89 @@ export default function ReportPreview({ data }) {
   );
 }
 
-// Keep your existing styles
+/* ===== SMALL COMPONENT ===== */
+const InfoCard = ({ icon, label, value }) => (
+  <View style={styles.card}>
+    <Ionicons name={icon} size={22} color="#2563EB" />
+    <Text style={styles.label}>{label}</Text>
+    <Text style={styles.value}>{value}</Text>
+  </View>
+);
+
+/* ===== STYLES ===== */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: { backgroundColor: '#fff', paddingVertical: 20, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center' },
-  title: { fontSize: 24, fontWeight: '700', marginBottom: 4 },
-  subtitle: { color: '#6B7280' },
+  header: {
+    backgroundColor: '#fff',
+    padding: 20,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  title: { fontSize: 22, fontWeight: '700' },
+  subtitle: { color: '#6B7280', marginTop: 4 },
+
   content: { padding: 16 },
-  infoBox: { backgroundColor: '#DBEAFE', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 12, padding: 12, marginBottom: 16, alignItems: 'center' },
-  infoText: { color: '#1E40AF', fontSize: 14 },
-  card: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', padding: 16, marginBottom: 16 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBox: { width: 32, height: 32 },
-  cardContent: { flex: 1 },
-  label: { color: '#6B7280', fontSize: 14, marginBottom: 4 },
-  value: { color: '#111827', fontSize: 16 },
-  severityBox: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  noteBox: { backgroundColor: '#F3F4F6', padding: 12, borderRadius: 12, alignItems: 'center', marginBottom: 16 },
-  noteText: { color: '#6B7280', fontSize: 14 },
-  actions: { padding: 16, borderTopWidth: 1, borderTopColor: '#E5E7EB' },
-  submitBtn: { backgroundColor: '#2563EB', paddingVertical: 16, borderRadius: 12, marginBottom: 12, alignItems: 'center' },
-  submitText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-  cancelBtn: { backgroundColor: '#E5E7EB', paddingVertical: 16, borderRadius: 12, alignItems: 'center' },
-  cancelText: { color: '#374151', fontWeight: '600', fontSize: 16 },
+
+  summary: {
+    backgroundColor: '#DBEAFE',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  summaryText: {
+    color: '#1E40AF',
+    fontSize: 15,
+    marginBottom: 4,
+  },
+
+  card: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
+  label: { color: '#6B7280', fontSize: 13 },
+  value: { fontSize: 16, fontWeight: '600', marginTop: 4 },
+
+  badge: {
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  badgeText: { fontWeight: '700' },
+
+  note: {
+    backgroundColor: '#F3F4F6',
+    padding: 14,
+    borderRadius: 12,
+  },
+  noteText: { color: '#6B7280', textAlign: 'center' },
+
+  actions: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  submit: {
+    backgroundColor: '#2563EB',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  submitText: { color: '#fff', fontWeight: '600' },
+  cancel: {
+    backgroundColor: '#E5E7EB',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelText: { fontWeight: '600' },
+
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });

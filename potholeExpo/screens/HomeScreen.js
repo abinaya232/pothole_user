@@ -15,14 +15,21 @@ import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
-/* ===== CONSTANTS ===== */
-/* ===== CONSTANTS ===== */
-const POTHOLE_THRESHOLD = 6.2;
-const MIN_SPEED = 10;        // was 8
-const COOLDOWN_MS = 15000;   // was 2000 (15 seconds)
-const PEAK_DELTA = 2.0;
-const GRAVITY = 9.8;
+/* ===== INDIAN ROAD CONSTANTS ===== */
+const MIN_SPEED = 10;          // km/h
+const SPEED_NOISE = 3;         // ignore GPS noise
+const COOLDOWN_MS = 12000;
 
+const LOW_Z = 3.0;
+const MEDIUM_Z = 5.5;
+const HIGH_Z = 7.0;
+
+const PATCHY_MIN = 3.0;
+const PATCHY_MAX = 5.5;
+const PATCHY_DURATION = 4000;
+
+const GRAVITY = 9.8;
+const PEAK_DELTA = 1.8;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -30,6 +37,7 @@ export default function HomeScreen() {
   const [isDetecting, setIsDetecting] = useState(false);
   const [speed, setSpeed] = useState(0);
   const [detections, setDetections] = useState([]);
+  const [patchyEvents, setPatchyEvents] = useState([]);
   const [accelData, setAccelData] = useState([]);
   const [popup, setPopup] = useState(null);
 
@@ -37,12 +45,14 @@ export default function HomeScreen() {
   const accelSub = useRef(null);
 
   const speedRef = useRef(0);
-  const lastDetectionRef = useRef(0);
   const prevZRef = useRef(0);
+  const lastDetectionRef = useRef(0);
+
+  const patchyStartRef = useRef(null);
+  const patchyAlertRef = useRef(false);
 
   const currentLocationRef = useRef({ latitude: 0, longitude: 0 });
 
-  /* ===== CLEANUP ===== */
   useEffect(() => {
     return () => {
       locationSub.current?.remove();
@@ -50,41 +60,26 @@ export default function HomeScreen() {
     };
   }, []);
 
-  /* ===== START DETECTION ===== */
+  /* ===== START ===== */
   const startDetection = async () => {
     setIsDetecting(true);
     setDetections([]);
+    setPatchyEvents([]);
     setAccelData([]);
 
     const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      alert('Location permission denied');
-      return;
-    }
+    if (status !== 'granted') return alert('Location permission denied');
 
-    // Get current location immediately
-    const loc = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.BestForNavigation,
-    });
-
-    const sp = loc.coords.speed ? loc.coords.speed * 3.6 : 0;
-    setSpeed(sp);
-    speedRef.current = sp;
-
-    currentLocationRef.current = {
-      latitude: loc.coords.latitude,
-      longitude: loc.coords.longitude,
-    };
-
-    // Watch location updates
     locationSub.current = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.BestForNavigation,
-        timeInterval: 500,
+        timeInterval: 1000,
         distanceInterval: 1,
       },
       (loc) => {
-        const sp = loc.coords.speed ? loc.coords.speed * 3.6 : 0;
+        let sp = loc.coords.speed ? loc.coords.speed * 3.6 : 0;
+        if (sp < SPEED_NOISE) sp = 0;
+
         setSpeed(sp);
         speedRef.current = sp;
 
@@ -95,86 +90,98 @@ export default function HomeScreen() {
       }
     );
 
-    // Accelerometer
     Accelerometer.setUpdateInterval(100);
-accelSub.current = Accelerometer.addListener(({ z }) => {
-  const zCorrected = Math.abs(z - GRAVITY);
+    accelSub.current = Accelerometer.addListener(({ z }) => {
+      const zCorrected = Math.abs(z - GRAVITY);
+      setAccelData(prev => [...prev.slice(-49), { zAxis: zCorrected }]);
 
-  // Update accelerometer graph (last 50 points)
-  setAccelData(prev => [...prev.slice(-49), { zAxis: zCorrected }]);
+      const now = Date.now();
+      const delta = Math.abs(zCorrected - prevZRef.current);
 
-  const now = Date.now();
+      /* ===== PATCHY ROAD ===== */
+      if (
+        speedRef.current >= MIN_SPEED &&
+        zCorrected >= PATCHY_MIN &&
+        zCorrected < PATCHY_MAX
+      ) {
+        if (!patchyStartRef.current) patchyStartRef.current = now;
 
-  const prevZ = prevZRef.current;
-const delta = zCorrected - prevZ;
+        if (
+          now - patchyStartRef.current >= PATCHY_DURATION &&
+          !patchyAlertRef.current
+        ) {
+          setPatchyEvents(p => [...p, {
+            latitude: currentLocationRef.current.latitude,
+            longitude: currentLocationRef.current.longitude,
+            avgZ: zCorrected,
+            startTime: patchyStartRef.current,
+            endTime: now,
+          }]);
 
-if (
-  speedRef.current >= MIN_SPEED &&
-  zCorrected > POTHOLE_THRESHOLD &&
-  delta > PEAK_DELTA &&
-  now - lastDetectionRef.current > COOLDOWN_MS
-) {
-  let severity = 'low';
+          setPopup('low');
+          patchyAlertRef.current = true;
+          setTimeout(() => {
+            setPopup(null);
+            patchyAlertRef.current = false;
+          }, 3000);
+        }
+      } else {
+        patchyStartRef.current = null;
+      }
 
-  if (zCorrected > 7.5) severity = 'high';
-  else if (zCorrected > 6.5) severity = 'medium';
+      /* ===== POTHOLE ===== */
+      if (
+        speedRef.current >= MIN_SPEED &&
+        delta > PEAK_DELTA &&
+        zCorrected >= MEDIUM_Z &&
+        now - lastDetectionRef.current > COOLDOWN_MS
+      ) {
+        let severity = 'medium';
+        if (zCorrected >= HIGH_Z) severity = 'high';
 
-  const detection = {
-    latitude: currentLocationRef.current.latitude,
-    longitude: currentLocationRef.current.longitude,
-    speed: speedRef.current,
-    zAxis: zCorrected,
-    timestamp: now,
-    severity,
+        setDetections(prev => [...prev, {
+          latitude: currentLocationRef.current.latitude,
+          longitude: currentLocationRef.current.longitude,
+          speed: speedRef.current,
+          zAxis: zCorrected,
+          timestamp: now,
+          severity,
+        }]);
+
+        setPopup(severity);
+        lastDetectionRef.current = now;
+        setTimeout(() => setPopup(null), 2500);
+      }
+
+      prevZRef.current = zCorrected;
+    });
   };
 
-  setDetections(prev => [...prev, detection]);
-  setPopup(severity);
-  lastDetectionRef.current = now;
+  /* ===== STOP ===== */
+  const stopDetection = () => {
+    setIsDetecting(false);
+    locationSub.current?.remove();
+    accelSub.current?.remove();
 
-  setTimeout(() => setPopup(null), 2000);
-}
+    if (detections.length === 0 && patchyEvents.length === 0) {
+      alert('No potholes or patchy roads detected');
+      return;
+    }
 
-prevZRef.current = zCorrected;
-
+    router.push({
+      pathname: '/report',
+      params: {
+        data: JSON.stringify({
+          potholes: detections,
+          patchyRoads: patchyEvents,
+          totalPotholes: detections.length,
+          totalPatchy: patchyEvents.length,
+        }),
+      },
+    });
+  };
 
   
-});
-
-  };
-
-  /* ===== STOP DETECTION ===== */
-  const stopDetection = () => {
-  setIsDetecting(false);
-  setSpeed(0);
-
-  locationSub.current?.remove();
-  accelSub.current?.remove();
-
-  // 🚫 No potholes detected → show alert & stop
-  if (detections.length === 0) {
-    alert('No potholes detected during this session');
-    return;
-  }
-
-  // ✅ At least one pothole → proceed to report
-  const lastDetection = detections[detections.length - 1];
-
-  router.push({
-    pathname: '/report',
-    params: {
-      data: JSON.stringify({
-        latitude: lastDetection.latitude,
-        longitude: lastDetection.longitude,
-        totalDetections: detections.length,
-        severity: lastDetection.severity,
-        timestamp: lastDetection.timestamp,
-      }),
-    },
-  });
-};
-
-
   /* ===== ACCELEROMETER GRAPH ===== */
   const AccelerometerGraph = ({ data }) => {
     const maxZ = Math.max(...data.map(d => d.zAxis), 8);
