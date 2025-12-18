@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Welcome to your Expo app 👋
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
@@ -48,3 +49,16 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+=======
+
+  # Pothole Detection App UI
+
+  This is a code bundle for Pothole Detection App UI. The original project is available at https://www.figma.com/design/9ZHEEUgi4hEwVB8uULbHNV/Pothole-Detection-App-UI.
+
+  ## Running the code
+
+  Run `npm i` to install the dependencies.
+
+  Run `npm run dev` to start the development server.
+  
+>>>>>>> b02da7fbe419c8bd2c253b12ae6a7934e09b8ed4
