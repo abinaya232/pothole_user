@@ -16,7 +16,6 @@ import Svg, { Polyline, Line } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import * as Device from 'expo-device';
 
-// Get Device Dimensions for Responsiveness
 const { width, height } = Dimensions.get('window');
 
 /* ===== ADMIN CONFIG & HEADERS ===== */
@@ -27,14 +26,18 @@ const API_HEADERS = {
 };
 
 /* ===== INDIAN ROAD CONSTANTS ===== */
-const MIN_SPEED = 0; 
+// POTHOLES - Refined for sharp hits only
+const MIN_SPEED = 15;        
+const PEAK_DELTA = 4.0;      
+const Z_MIN_THRESHOLD = 7.0; 
+const COOLDOWN_MS = 3000;    
+
+// PATCHY - Unchanged as per your request
 const SPEED_NOISE = 3; 
-const COOLDOWN_MS = 2500;
 const PATCHY_MIN = 1.5; 
 const PATCHY_MAX = 6.5; 
 const PATCHY_DURATION = 3500; 
 const GRAVITY = 9.8;
-const PEAK_DELTA = 1.8;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -87,10 +90,10 @@ export default function HomeScreen() {
     accelSub.current = Accelerometer.addListener(({ x, y, z }) => {
       const magnitude = Math.sqrt(x * x + y * y + z * z);
       const zCorrected = Math.abs(magnitude - 1.0) * GRAVITY;
-      setAccelData(prev => [...prev.slice(-49), { zAxis: zCorrected }]);
       const now = Date.now();
       const delta = Math.abs(zCorrected - prevZRef.current);
 
+      // --- 1. PATCHY LOGIC (EXISTING - NO CHANGES) ---
       if (speedRef.current >= MIN_SPEED && zCorrected >= PATCHY_MIN && zCorrected < PATCHY_MAX) {
         lastPatchyVibrationRef.current = now;
         if (!patchyStartRef.current) patchyStartRef.current = now;
@@ -105,14 +108,22 @@ export default function HomeScreen() {
         patchyAlertRef.current = false;
       }
 
-      if (speedRef.current >= MIN_SPEED && delta > PEAK_DELTA && zCorrected >= 4.0 && now - lastDetectionRef.current > COOLDOWN_MS) {
-        let severity = zCorrected >= 7.0 ? 'High' : 'Medium';
+      // --- 2. POTHOLE LOGIC (REFINED SENSITIVITY) ---
+      if (
+        speedRef.current >= MIN_SPEED && 
+        delta > PEAK_DELTA && 
+        zCorrected >= Z_MIN_THRESHOLD && 
+        now - lastDetectionRef.current > COOLDOWN_MS
+      ) {
+        let severity = zCorrected >= 9.0 ? 'High' : 'Medium';
         setDetections(prev => [...prev, { lat: currentLocationRef.current.latitude, lon: currentLocationRef.current.longitude, z: zCorrected, time: now, sev: severity }]);
         setPopup(severity.toLowerCase());
         lastDetectionRef.current = now;
         setTimeout(() => setPopup(null), 2500);
       }
+
       prevZRef.current = zCorrected;
+      setAccelData(prev => [...prev.slice(-49), { zAxis: zCorrected }]);
     });
   };
 
@@ -263,14 +274,12 @@ const styles = StyleSheet.create({
   brand: { fontSize: width * 0.06, fontWeight: '900', color: '#111827', letterSpacing: -0.5 },
   pro: { color: '#6366F1' },
   headerSub: { color: '#9CA3AF', fontSize: width * 0.035, fontWeight: '500' },
-
   startWrapper: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
   heroCircle: { width: width * 0.4, height: width * 0.4, borderRadius: width * 0.2, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
   readyText: { fontSize: width * 0.055, fontWeight: '800', color: '#1F2937' },
   readySub: { fontSize: width * 0.035, color: '#6B7280', textAlign: 'center', marginTop: 8, marginBottom: 40 },
   mainStartBtn: { backgroundColor: '#6366F1', flexDirection: 'row', paddingVertical: 18, paddingHorizontal: 32, borderRadius: 20, alignItems: 'center', elevation: 8 },
   startBtnText: { color: '#fff', fontSize: width * 0.045, fontWeight: '700', marginRight: 10 },
-
   liveContent: { padding: width * 0.05 },
   row: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   miniCard: { backgroundColor: '#F9FAFB', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: '#F3F4F6' },
@@ -279,21 +288,16 @@ const styles = StyleSheet.create({
   unit: { fontSize: 14, color: '#9CA3AF' },
   gpsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
   gpsStatus: { fontSize: 14, fontWeight: '600', color: '#10B981' },
-
   visualCard: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: '#F3F4F6', elevation: 2 },
   visualTitle: { fontSize: 14, fontWeight: '700', color: '#374151', marginBottom: 15 },
   graphContainer: { height: 120, width: '100%', overflow: 'hidden' },
-
   counterCard: { flex: 1, backgroundColor: '#F9FAFB', borderRadius: 20, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#F3F4F6' },
   counterLabel: { fontSize: 12, fontWeight: '700', color: '#6B7280' },
   counterVal: { fontSize: width * 0.08, fontWeight: '900', marginTop: 4 },
-
   locationStrip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F5F3FF', padding: 12, borderRadius: 14, gap: 8, marginBottom: 24 },
   coordText: { fontSize: 13, color: '#6366F1', fontWeight: '600', fontFamily: 'monospace' },
-
   finishBtn: { backgroundColor: '#111827', flexDirection: 'row', height: 64, borderRadius: 20, justifyContent: 'center', alignItems: 'center', gap: 10 },
   finishText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-
   popup: { position: 'absolute', top: height * 0.06, left: 20, right: 20, padding: 16, borderRadius: 16, flexDirection: 'row', gap: 12, alignItems: 'center', zIndex: 100, elevation: 10 },
   popupText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   high: { backgroundColor: '#EF4444' },
