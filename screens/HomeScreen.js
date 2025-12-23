@@ -27,7 +27,7 @@ const API_HEADERS = {
 
 /* ===== INDIAN ROAD CONSTANTS ===== */
 // POTHOLES - Refined for sharp hits only
-const MIN_SPEED = 15;        
+const MIN_SPEED = 0;        
 const PEAK_DELTA = 4.0;      
 const Z_MIN_THRESHOLD = 7.0; 
 const COOLDOWN_MS = 3000;    

@@ -1,13 +1,37 @@
-import React, { useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, Dimensions, StatusBar } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, Pressable, Dimensions, StatusBar, Alert, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
+// API Configuration - Change this to your server IP
+const API_BASE_URL = Platform.OS === 'web' 
+  ? 'http://localhost:5000/api'  // For web
+  : 'http://10.70.253.88:5000/api';  // For mobile devices
+
 const { width, height } = Dimensions.get('window');
+
+// Cross-platform alert function
+const showAlert = (title, message, buttons = [{ text: 'OK' }]) => {
+  if (Platform.OS === 'web') {
+    // Use browser's confirm/alert for web
+    if (buttons.length > 1) {
+      const confirmed = window.confirm(`${title}\n\n${message}`);
+      if (confirmed && buttons[0]?.onPress) {
+        buttons[0].onPress();
+      }
+    } else {
+      window.alert(`${title}\n\n${message}`);
+    }
+  } else {
+    Alert.alert(title, message, buttons);
+  }
+};
 
 export default function ReportPreview() {
   const router = useRouter();
   const { data } = useLocalSearchParams();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   if (!data) return (
     <View style={styles.center}><Text style={styles.loadingText}>Initializing Audit Engine...</Text></View>
@@ -15,6 +39,46 @@ export default function ReportPreview() {
 
   const parsed = JSON.parse(data);
   const anomalies = parsed.anomalies || [];
+
+  // Submit report to backend
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/reports/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-App-Version': '1.0.0',
+        },
+        body: JSON.stringify(parsed)
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        // Success - navigate to success screen
+        router.push({ pathname: '/success', params: { data } });
+      } else {
+        setErrorMessage(result.message || 'Could not submit report. Please try again.');
+        showAlert('Submission Failed', result.message || 'Could not submit report. Please try again.');
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+      setErrorMessage('Could not connect to server. Please check your internet connection.');
+      showAlert(
+        'Network Error', 
+        'Could not connect to server. Please check your internet connection and try again.',
+        [
+          { text: 'Retry', onPress: handleSubmit },
+          { text: 'Cancel', style: 'cancel' }
+        ]
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   
   // 1. STATS CALCULATION
   const potholesCount = anomalies.filter(a => a.type === "pothole").length;
@@ -158,11 +222,32 @@ export default function ReportPreview() {
         <View style={{height: 40}} />
       </ScrollView>
 
+      {/* ERROR MESSAGE */}
+      {errorMessage && (
+        <View style={styles.errorBanner}>
+          <Ionicons name="warning" size={18} color="#fff" />
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        </View>
+      )}
+
       {/* FOOTER */}
       <View style={styles.footer}>
-        <Pressable style={styles.mainAction} onPress={() => router.push({ pathname: '/success', params: { data } })}>
-          <Text style={styles.mainActionText}>Submit Audit Report</Text>
-          <Ionicons name="shield-checkmark" size={20} color="#fff" />
+        <Pressable 
+          style={[styles.mainAction, isSubmitting && styles.mainActionDisabled]} 
+          onPress={handleSubmit}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <>
+              <ActivityIndicator color="#fff" size="small" />
+              <Text style={styles.mainActionText}>Submitting...</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.mainActionText}>Submit Audit Report</Text>
+              <Ionicons name="shield-checkmark" size={20} color="#fff" />
+            </>
+          )}
         </Pressable>
       </View>
     </View>
@@ -207,7 +292,10 @@ const styles = StyleSheet.create({
   issueText: { fontSize: 13, color: '#475569', fontWeight: '600', marginBottom: 2 },
   footer: { padding: 24, backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#E2E8F0' },
   mainAction: { backgroundColor: '#6366F1', flexDirection: 'row', height: 64, borderRadius: 20, justifyContent: 'center', alignItems: 'center', gap: 12, elevation: 4 },
+  mainActionDisabled: { backgroundColor: '#9CA3AF' },
   mainActionText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 10, color: '#64748B' }
+  loadingText: { marginTop: 10, color: '#64748B' },
+  errorBanner: { backgroundColor: '#EF4444', padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  errorText: { color: '#fff', fontSize: 13, fontWeight: '600', flex: 1 }
 });
