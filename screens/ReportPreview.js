@@ -6,7 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 // API Configuration - Change this to your server IP
 const API_BASE_URL = Platform.OS === 'web' 
   ? 'http://localhost:5000/api'  // For web
-  : 'http://10.70.253.88:5000/api';  // For mobile devices
+  : 'http://172.26.229.227:5000/api';  // For mobile devices
 
 const { width, height } = Dimensions.get('window');
 
