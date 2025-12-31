@@ -5,7 +5,7 @@
 
 // Change this to your server URL
 const API_BASE_URL = __DEV__ 
-  ? 'http://172.26.229.227:5000/api'  // Android emulator
+  ? 'http://1172.26.229.227:5000/api'  // Android emulator
   : 'http://localhost:5000/api'; // iOS simulator / Web
 
 // For physical devices, use your machine's IP address:

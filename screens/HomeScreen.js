@@ -106,33 +106,33 @@ export default function HomeScreen() {
       /* ===== FALSE POSITIVE FILTERS ===== */
 
       // 1. Ignore walking / idle phone shake
-      if (speedRef.current < 4) {
-        prevZRef.current = zCorrected;
-        return;
-      }
+      // if (speedRef.current < 0) {
+      //   prevZRef.current = zCorrected;
+      //   return;
+      // }
 
       // 2. Skip smooth speed breakers
-      if (
-        zCorrected >= 3.5 &&
-        zCorrected <= 6.5 &&
-        delta < 1.4 &&
-        speedRef.current < 25
-      ) {
-        prevZRef.current = zCorrected;
-        return;
-      }
+      // if (
+      //   zCorrected >= 3.5 &&
+      //   zCorrected <= 6.5 &&
+      //   delta < 1.4 &&
+      //   speedRef.current < 25
+      // ) {
+      //   prevZRef.current = zCorrected;
+      //   return;
+      // }
 
       // 3. Skip braking jerks
-      if (zCorrected >= 4.0 && prevSpeedRef.current - speedRef.current > 6) {
-        prevZRef.current = zCorrected;
-        return;
-      }
+      // if (zCorrected >= 4.0 && prevSpeedRef.current - speedRef.current > 6) {
+      //   prevZRef.current = zCorrected;
+      //   return;
+      // }
 
       // 4. Skip phone handling at low speed
-      if (zCorrected >= 4.0 && speedRef.current < 6) {
-        prevZRef.current = zCorrected;
-        return;
-      }
+      // if (zCorrected >= 4.0 && speedRef.current < 6) {
+      //   prevZRef.current = zCorrected;
+      //   return;
+      // }
 
       // --- 1. PATCHY LOGIC (EXISTING - NO CHANGES) ---
       if (
