@@ -271,7 +271,7 @@ export default function HomeScreen() {
               y1={v}
               x2={width}
               y2={v}
-              stroke="#F3F4F6"
+              stroke="#f3f4f6fe"
               strokeWidth="1"
             />
           ))}
